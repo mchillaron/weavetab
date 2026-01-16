@@ -17,6 +17,7 @@ import numpy as np
 
 from weavetab.load_arm_datadict import load_arm_datadict
 from weavetab.get_wavelength_axis import get_wavelength_axis
+from weavetab.extract_spectra import extract_spectra
 
 def extract_cube_spectra(working_dir, cube_path, number_simulations):
     """Extract flux-calibrated spectra and their spatial coordinates from WEAVE FITS data cubes.
@@ -51,7 +52,7 @@ def extract_cube_spectra(working_dir, cube_path, number_simulations):
     
     # Extract spectra and spatial coordinates from the cube
     # make an astropy table with columns: x, y, flux (1d array of length naxis3), ivar (1d array of length naxis3)
-    
+    extract_spectra(cube_dict, working_dir)
 
 
 
