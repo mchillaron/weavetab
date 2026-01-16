@@ -40,7 +40,7 @@ Homepage = "https://github.com/mchillaron/weavetab"
 Repository = "https://github.com/mchillaron/weavetab.git"
 
 [project.scripts]
-pypistrello = "weavetab.extract_cube_spectra:main"
+weavetab = "weavetab.extract_cube_spectra:main"
 
 # pyproject.toml
 [tool.setuptools_scm]
