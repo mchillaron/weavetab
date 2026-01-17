@@ -1,7 +1,7 @@
 #
 # Copyright 2026 Universidad Complutense de Madrid
 #
-# This file is part of pypistrello.
+# This file is part of weavetab.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 # License-Filename: LICENSE
