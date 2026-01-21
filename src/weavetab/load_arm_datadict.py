@@ -10,6 +10,9 @@
 from astropy.io import fits
 import numpy as np
 
+RED     = "\033[91m"
+GREEN   = "\033[92m"
+RESET   = "\033[0m"
 
 def load_arm_datadict(filepath):
     """Load WEAVE cube extensions for a given arm into a data dictionary.
@@ -55,7 +58,7 @@ def load_arm_datadict(filepath):
 
         arm = arms_found.pop()
         cube["arm"] = arm
-        print(f"INFO: Detected arm: {arm}")
+        print(f"{GREEN}INFO:{RESET} Detected arm: {arm}")
 
         # Secondly, load the extensions into a data dictionary
         for hdu in hdul:

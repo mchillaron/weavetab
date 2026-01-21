@@ -14,8 +14,11 @@ from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 
-def extract_spectra(cube_dict, cube_filename, working_dir, region=None,
-                    number_simulations=0):
+GREEN   = "\033[92m"
+RESET   = "\033[0m"
+
+def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, region=None,
+                            save_tab=False):
     
     """Extract (x,y) coordinates, calibrated spectra and their inverse variance from a WEAVE cube.
     The information is stored in an Astropy Table, and saved as a FITS file in a subdirectory
@@ -44,7 +47,7 @@ def extract_spectra(cube_dict, cube_filename, working_dir, region=None,
     naxis1 = header["NAXIS1"]  # spatial axis 1, FITS x axis
     naxis2 = header["NAXIS2"]  # spatial axis 2, FITS y axis
     naxis3 = header["NAXIS3"]  # spectral
-    print(f'INFO: Cube dimensions - NAXIS1: {naxis1}, NAXIS2: {naxis2}, NAXIS3: {naxis3}')
+    print(f'{GREEN}INFO:{RESET} Cube dimensions - NAXIS1: {naxis1}, NAXIS2: {naxis2}, NAXIS3: {naxis3}')
 
     if region is not None:
         x1_fits, x2_fits, y1_fits, y2_fits = region
@@ -78,16 +81,23 @@ def extract_spectra(cube_dict, cube_filename, working_dir, region=None,
                 continue
 
             # sigma(ADU)= 1/sqrt(spectrum_ivar), avoiding division by zero
-            sigma_adus = np.where(spectrum_ivar > 0, 1.0 / np.sqrt(spectrum_ivar), 0)  #CHECK
+            with np.errstate(divide='ignore', invalid='ignore'):
+                sigma_adus = np.where(spectrum_ivar > 0,
+                                    1.0 / np.sqrt(spectrum_ivar),
+                                    0)
+
+            #sigma_adus = np.where(spectrum_ivar > 0, 1.0 / np.sqrt(spectrum_ivar), 0)  #CHECK
             sigma_flux = sigma_adus * sensfunc           # Flux calibration of sigma
             
             # Store FITS-style coordinates (1-based)
             rows.append((x+1, y+1, spectrum_adus, spectrum_flux, spectrum_ivar, sigma_adus, sigma_flux))
 
-    print(f"INFO: Found and discarded {num_zero_spectra} zero spectra")
-    print(f"INFO: Kept {len(rows)} spectra out of {total_pixels}")
+    print(f"{GREEN}INFO:{RESET} Found and discarded {num_zero_spectra} zero spectra")
+    print(f"{GREEN}INFO:{RESET} Kept {len(rows)} spectra out of {total_pixels}")
 
+    
     table = Table(rows=rows, names=("x", "y", "specADU", "spec", "ivarADU", "sigmaADU", "sigma"))
+    table.meta["Header"] = header
     table["x"].unit = u.pixel
     table["y"].unit = u.pixel
     table["specADU"].unit = u.adu
@@ -97,37 +107,44 @@ def extract_spectra(cube_dict, cube_filename, working_dir, region=None,
     table["sigma"].unit = u.erg / (u.s * u.cm**2 * u.AA)
 
     # Add WCS information to the FITS header
-    wcs_header = Header()
-    for key in header.keys():
-        if key.startswith(('CRPIX', 'CRVAL', 'CDELT', 'CTYPE', 'CUNIT', 'CD')):
-            wcs_header[key] = header[key]
-            table.meta.update(wcs_header)
-
-    # Create output directory if it doesn't exist
-    output_dir = Path(working_dir) / f"{cube_filename}_spectra_tabs"
-    if not output_dir.exists():
-        output_dir.mkdir(parents=True, exist_ok=True)
-        print(f'INFO: Created output directory: {output_dir}')
-    else:
-        print(f'INFO: Output directory already exists: {output_dir}')
-        print(f'INFO: Existing files will be overwritten.')
-    
-    # The output filename depends on the case:
-    # 1) if region is None, output filename is "extracted_spectra.fits"
-    # 2) if region is specified, output filename is "extracted_spectra_x1x2_y1y2.fits"
-    # 3) all the above + if number_simulations > 0, append "_000{number_simulations}" 
-    # to the filename before the extension, be the number zero-padded to 3 digits.
-
-    if region is None:
-        base_name = "extracted_spectra"
-    else:
-        base_name = (f"extracted_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
-    if number_simulations > 0:
-        base_name += f"_{number_simulations:04d}"
-    output_path = output_dir / f"{base_name}.fits"
+    #wcs_header = Header()
+    #for key in header.keys():
+    #    if key.startswith(('CRPIX', 'CRVAL', 'CDELT', 'CTYPE', 'CUNIT', 'CD')):
+    #        wcs_header[key] = header[key]
+    #        table.meta.update(wcs_header)
 
     cols_to_save = ["x", "y", "spec", "sigma"]
     table_to_save = table[cols_to_save]
+    print('This is a preview of the first 10 rows of the table:')
+    table_to_save[:10].pprint(max_width=120)
 
-    table_to_save.write(output_path, format="fits", overwrite=True)
-    print(f'INFO: Extracted spectra saved to {output_path}')
+    # Create output directory if it doesn't exist
+    if save_tab:
+        output_dir = Path(working_dir) / f"{cube_filename}_spectra_tabs"
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+            print(f'{GREEN}INFO:{RESET} Created output directory: {output_dir}')
+        else:
+            print(f'{GREEN}INFO:{RESET} Output directory already exists: {output_dir}')
+            print(f'{GREEN}INFO:{RESET} Existing files will be overwritten.')
+    
+        # The output filename depends on the case:
+        # 1) if region is None, output filename is "extracted_spectra.fits"
+        # 2) if region is specified, output filename is "extracted_spectra_x1x2_y1y2.fits"
+        # 3) all the above + if number_simulations > 0, append "_000{number_simulations}" 
+        # to the filename before the extension, be the number zero-padded to 3 digits.
+
+        if region is None:
+            base_name = "extracted_spectra"
+        else:
+            base_name = (f"extracted_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
+        if number_simulations > 0:
+            base_name += f"_{number_simulations:04d}"
+        output_path = output_dir / f"{base_name}.fits"
+
+        table_to_save.write(output_path, format="fits", overwrite=True)
+        print(f'{GREEN}INFO:{RESET} Extracted spectra saved to {output_path}')
+
+    return table_to_save
+
+    
