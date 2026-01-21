@@ -7,7 +7,6 @@
 # License-Filename: LICENSE
 #
 
-
 from astropy.io import fits
 from pathlib import Path
 import numpy as np
@@ -76,11 +75,11 @@ def table_to_cube(table, cube_filename, working_dir, region, number_simulations)
         base_name = "cube_spectra"
     else:
         base_name = (f"cube_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
-    if number_simulations > 0:
-        base_name += f"_{number_simulations:04d}"
 
     print(f"{CYAN}Dimensions of the new cube:{RESET} (nw={nw}, ny={ny}, nx={nx})")
 
     output_path = output_dir / f"{base_name}.fits"
     hdul.writeto(output_path, overwrite=True)
     print(f"{GREEN}INFO:{RESET} Cube reconstructed and saved to {output_path}")
+
+    return hdul, output_dir

@@ -8,7 +8,6 @@
 #
 
 from astropy import units as u
-from astropy.io.fits import Header
 from astropy.table import Table
 from pathlib import Path
 from tqdm import tqdm
@@ -56,7 +55,7 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
 
     # Convert to NumPy indices
     x_start = x1_fits - 1
-    x_stop  = x2_fits          # inclusive FITS → exclusive NumPy
+    x_stop  = x2_fits          
     y_start = y1_fits - 1
     y_stop  = y2_fits
 
@@ -86,16 +85,13 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
                                     1.0 / np.sqrt(spectrum_ivar),
                                     0)
 
-            #sigma_adus = np.where(spectrum_ivar > 0, 1.0 / np.sqrt(spectrum_ivar), 0)  #CHECK
             sigma_flux = sigma_adus * sensfunc           # Flux calibration of sigma
-            
-            # Store FITS-style coordinates (1-based)
-            rows.append((x+1, y+1, spectrum_adus, spectrum_flux, spectrum_ivar, sigma_adus, sigma_flux))
+        
+            rows.append((x+1, y+1, spectrum_adus, spectrum_flux, spectrum_ivar, sigma_adus, sigma_flux)) # Store FITS-style coordinates (1-based)
 
     print(f"{GREEN}INFO:{RESET} Found and discarded {num_zero_spectra} zero spectra")
     print(f"{GREEN}INFO:{RESET} Kept {len(rows)} spectra out of {total_pixels}")
 
-    
     table = Table(rows=rows, names=("x", "y", "specADU", "spec", "ivarADU", "sigmaADU", "sigma"))
     table.meta["Header"] = header
     table["x"].unit = u.pixel
@@ -106,13 +102,6 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
     table["sigmaADU"].unit = u.adu
     table["sigma"].unit = u.erg / (u.s * u.cm**2 * u.AA)
 
-    # Add WCS information to the FITS header
-    #wcs_header = Header()
-    #for key in header.keys():
-    #    if key.startswith(('CRPIX', 'CRVAL', 'CDELT', 'CTYPE', 'CUNIT', 'CD')):
-    #        wcs_header[key] = header[key]
-    #        table.meta.update(wcs_header)
-
     cols_to_save = ["x", "y", "spec", "sigma"]
     table_to_save = table[cols_to_save]
     print('This is a preview of the first 10 rows of the table:')
@@ -120,7 +109,8 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
 
     # Create output directory if it doesn't exist
     if save_tab:
-        output_dir = Path(working_dir) / f"{cube_filename}_spectra_tabs"
+        #output_dir = Path(working_dir) / f"{cube_filename}_spectra_tabs"
+        output_dir = working_dir
         if not output_dir.exists():
             output_dir.mkdir(parents=True, exist_ok=True)
             print(f'{GREEN}INFO:{RESET} Created output directory: {output_dir}')

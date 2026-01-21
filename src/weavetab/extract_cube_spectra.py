@@ -18,6 +18,7 @@ from weavetab.load_arm_datadict import load_arm_datadict
 from weavetab.get_wavelength_axis import get_wavelength_axis
 from weavetab.weavecube_to_tab import weavecube_to_tab
 from weavetab.table_to_cube import table_to_cube
+from weavetab.simulate_cubes import simulate_cubes
 
 RED     = "\033[91m"
 GREEN   = "\033[92m"
@@ -65,10 +66,11 @@ def extract_cube_spectra(working_dir, cube_path, number_simulations, region=None
     table = weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, region, save_tab)
 
     print(f'{BOLD}{MAGENTA} Transforming the FITS Table to Cube.{RESET}')
-    table_to_cube(table, cube_filename, working_dir, region, number_simulations)
+    new_cube, new_cube_path = table_to_cube(table, cube_filename, working_dir, region, number_simulations)
 
+    print(f'{BOLD}{MAGENTA} Simulating WEAVE cubes.{RESET}')
     if number_simulations > 0:
-        pass
+        simulate_cubes(new_cube, new_cube_path, region, number_simulations)
     
 
 
