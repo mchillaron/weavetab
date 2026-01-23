@@ -114,7 +114,7 @@ def main():
         raise ValueError("Number of simulations must be a non-negative integer.")
     if number_simulations > 0:
         print(f"{GREEN}INFO:{RESET} Number of simulations to perform: {number_simulations}")
-        print(f"{GREEN}INFO:{RESET} A total number of {number_simulations} FITS tables will be created.")
+        print(f"{GREEN}INFO:{RESET} A total number of {number_simulations} FITS cubes will be created.")
     if number_simulations == 0:
         print(f"{GREEN}INFO:{RESET} No simulations will be performed. Only the original spectra will be extracted.")
 
