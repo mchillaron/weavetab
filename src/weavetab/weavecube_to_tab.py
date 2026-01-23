@@ -41,11 +41,15 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
     data = cube_dict["data"]
     ivar = cube_dict["ivar"]
     sensfunc = cube_dict["sensfunc"]  # allows flux calibration
-    header = cube_dict["data_header"]
+    header = cube_dict["primary_header"]
+    data_header = cube_dict["data_header"]
 
-    naxis1 = header["NAXIS1"]  # spatial axis 1, FITS x axis
-    naxis2 = header["NAXIS2"]  # spatial axis 2, FITS y axis
-    naxis3 = header["NAXIS3"]  # spectral
+    header_total = header.copy()
+    header_total.update(data_header)
+
+    naxis1 = header_total["NAXIS1"]  # spatial axis 1, FITS x axis
+    naxis2 = header_total["NAXIS2"]  # spatial axis 2, FITS y axis
+    naxis3 = header_total["NAXIS3"]  # spectral
     print(f'{GREEN}INFO:{RESET} Cube dimensions - NAXIS1: {naxis1}, NAXIS2: {naxis2}, NAXIS3: {naxis3}')
 
     if region is not None:
@@ -93,7 +97,7 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
     print(f"{GREEN}INFO:{RESET} Kept {len(rows)} spectra out of {total_pixels}")
 
     table = Table(rows=rows, names=("x", "y", "specADU", "spec", "ivarADU", "sigmaADU", "sigma"))
-    table.meta["Header"] = header
+    table.meta["Header"] = header_total
     table["x"].unit = u.pixel
     table["y"].unit = u.pixel
     table["specADU"].unit = u.adu

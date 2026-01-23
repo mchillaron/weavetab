@@ -25,7 +25,7 @@ def table_to_cube(table, cube_filename, working_dir, region, number_simulations)
     """
 
     header = table.meta["Header"]
-
+    print(header)
     nw = header["NAXIS3"]
 
     if region is not None:
