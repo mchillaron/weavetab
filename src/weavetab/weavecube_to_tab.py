@@ -8,16 +8,16 @@
 #
 
 from astropy import units as u
+from astropy.io import fits
 from astropy.table import Table
-from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 
 GREEN   = "\033[92m"
 RESET   = "\033[0m"
 
-def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, region=None,
-                            save_tab=False):
+def weavecube_to_tab(cube_dict, working_dir, number_simulations, region=None,
+                    save_tab=False):
     
     """Extract (x,y) coordinates, calibrated spectra and their inverse variance from a WEAVE cube.
     The information is stored in an Astropy Table, and saved as a FITS file in a subdirectory
@@ -43,6 +43,9 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
     sensfunc = cube_dict["sensfunc"]  # allows flux calibration
     header = cube_dict["primary_header"]
     data_header = cube_dict["data_header"]
+
+    #conflicts = set(header.keys()) & set(data_header.keys())
+    #print("Conflicting keywords:", conflicts)
 
     header_total = header.copy()
     header_total.update(data_header)
@@ -97,12 +100,12 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
     print(f"{GREEN}INFO:{RESET} Kept {len(rows)} spectra out of {total_pixels}")
 
     table = Table(rows=rows, names=("x", "y", "specADU", "spec", "ivarADU", "sigmaADU", "sigma"))
-    table.meta["Header"] = header_total
+    #table.meta["Header"] = header_total
     table["x"].unit = u.pixel
     table["y"].unit = u.pixel
     table["specADU"].unit = u.adu
     table["spec"].unit = u.erg / (u.s * u.cm**2 * u.AA)
-    table["ivarADU"].unit = (u.erg / (u.s * u.cm**2 * u.AA))**-2
+    table["ivarADU"].unit = u.adu**-2
     table["sigmaADU"].unit = u.adu
     table["sigma"].unit = u.erg / (u.s * u.cm**2 * u.AA)
 
@@ -110,6 +113,15 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
     table_to_save = table[cols_to_save]
     print('This is a preview of the first 10 rows of the table:')
     table_to_save[:10].pprint(max_width=120)
+
+    primary_hdu = fits.PrimaryHDU()
+    primary_hdu.header = header_total.copy()
+    #primary_hdu = fits.PrimaryHDU(data=None, header=header_total.copy())
+    table_hdu = fits.BinTableHDU(table_to_save)
+    hdul_table = fits.HDUList([
+        primary_hdu,
+        table_hdu
+    ])
 
     # Create output directory if it doesn't exist
     if save_tab:
@@ -132,13 +144,12 @@ def weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, 
             base_name = "extracted_spectra"
         else:
             base_name = (f"extracted_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
-        if number_simulations > 0:
-            base_name += f"_{number_simulations:04d}"
+        
         output_path = output_dir / f"{base_name}.fits"
 
-        table_to_save.write(output_path, format="fits", overwrite=True)
+        hdul_table.writeto(output_path, overwrite=True)
         print(f'{GREEN}INFO:{RESET} Extracted spectra saved to {output_path}')
 
-    return table_to_save
+    return table_to_save, header_total
 
     

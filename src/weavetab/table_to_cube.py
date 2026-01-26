@@ -15,7 +15,7 @@ GREEN   = "\033[92m"
 CYAN    = "\033[96m"
 RESET   = "\033[0m"
 
-def table_to_cube(table, cube_filename, working_dir, region, number_simulations):
+def table_to_cube(table, table_header, cube_filename, working_dir, region):
     """
     Rebuild a FITS cube from an Astropy Table produced by extract_spectra_to_tab().
     Creates:
@@ -24,17 +24,15 @@ def table_to_cube(table, cube_filename, working_dir, region, number_simulations)
       - Extension 2: sigma cube (sigma)
     """
 
-    header = table.meta["Header"]
-    print(header)
-    nw = header["NAXIS3"]
+    nw = table_header["NAXIS3"]
 
     if region is not None:
         x1_fits, x2_fits, y1_fits, y2_fits = region
         nx = x2_fits - x1_fits + 1 # +1 so we don't lose the last pixel
         ny = y2_fits - y1_fits + 1
     else:
-        nx = header["NAXIS1"]
-        ny = header["NAXIS2"]
+        nx = table_header["NAXIS1"]
+        ny = table_header["NAXIS2"]
         x1_fits, x2_fits, y1_fits, y2_fits = 1, nx, 1, ny
 
 
@@ -44,24 +42,27 @@ def table_to_cube(table, cube_filename, working_dir, region, number_simulations)
 
     # Fill cubes
     for row in table:
+        x_fits = row["x"]
+        y_fits = row["y"]
+
+        # Check if the pixel is inside the region
+        if not (x1_fits <= x_fits <= x2_fits and
+                y1_fits <= y_fits <= y2_fits):
+            continue
+
         # Convert global FITS coords → local region coords → numpy coords
-        x_local = row["x"] - x1_fits
-        y_local = row["y"] - y1_fits
+        x_local = x_fits - x1_fits
+        y_local = y_fits - y1_fits
 
         cube[:, y_local, x_local] = row["spec"]
         sigma_cube[:, y_local, x_local] = row["sigma"]
 
-        #x = row["x"] - 1   # FITS → numpy
-        #y = row["y"] - 1
-        #cube[:, y, x] = row["spec"]
-        #sigma_cube[:, y, x] = row["sigma"]
-
     # Build HDUs
-    primary_hdu = fits.PrimaryHDU(header=header)
+    primary_hdu = fits.PrimaryHDU(header=table_header.copy())
     cube_hdu = fits.ImageHDU(data=cube, name="DATA")
     sigma_hdu = fits.ImageHDU(data=sigma_cube, name="SIGMA")
 
-    hdul = fits.HDUList([primary_hdu, cube_hdu, sigma_hdu])
+    hdul_cube = fits.HDUList([primary_hdu, cube_hdu, sigma_hdu])
 
     output_dir = Path(working_dir) / f"{cube_filename}_spectra_cubes"
     if not output_dir.exists():
@@ -79,7 +80,7 @@ def table_to_cube(table, cube_filename, working_dir, region, number_simulations)
     print(f"{CYAN}Dimensions of the new cube:{RESET} (nw={nw}, ny={ny}, nx={nx})")
 
     output_path = output_dir / f"{base_name}.fits"
-    hdul.writeto(output_path, overwrite=True)
+    hdul_cube.writeto(output_path, overwrite=True)
     print(f"{GREEN}INFO:{RESET} Cube reconstructed and saved to {output_path}")
 
-    return hdul, output_dir
+    return hdul_cube, output_dir

@@ -63,10 +63,10 @@ def extract_cube_spectra(working_dir, cube_path, number_simulations, region=None
         wavelength = np.loadtxt(wavelength_csv, delimiter=',') # and load it as 1d array
     
     print(f'{BOLD}{MAGENTA} Extracting spectra from the original cube (no simulations) to Table.{RESET}')
-    table = weavecube_to_tab(cube_dict, cube_filename, working_dir, number_simulations, region, save_tab)
+    table, table_header = weavecube_to_tab(cube_dict, working_dir, number_simulations, region, save_tab)
 
     print(f'{BOLD}{MAGENTA} Transforming the FITS Table to Cube.{RESET}')
-    new_cube, new_cube_path = table_to_cube(table, cube_filename, working_dir, region, number_simulations)
+    new_cube, new_cube_path = table_to_cube(table, table_header, cube_filename, working_dir, region)
 
     print(f'{BOLD}{MAGENTA} Simulating WEAVE cubes.{RESET}')
     if number_simulations > 0:
@@ -114,7 +114,7 @@ def main():
         raise ValueError("Number of simulations must be a non-negative integer.")
     if number_simulations > 0:
         print(f"{GREEN}INFO:{RESET} Number of simulations to perform: {number_simulations}")
-        print(f"{GREEN}INFO:{RESET} A total number of {number_simulations} FITS cubes will be created.")
+        print(f"{GREEN}INFO:{RESET} A total number of {number_simulations+1} FITS cubes will be created.")
     if number_simulations == 0:
         print(f"{GREEN}INFO:{RESET} No simulations will be performed. Only the original spectra will be extracted.")
 

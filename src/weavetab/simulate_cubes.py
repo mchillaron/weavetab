@@ -15,8 +15,6 @@ import numpy as np
 GREEN   = "\033[92m"
 CYAN    = "\033[96m"
 RESET   = "\033[0m"
-#BAR_COLOR = "\033[95m" # magenta
-#bar_format = f"{BAR_COLOR}{{l_bar}}{{bar}}{{r_bar}}{RESET}"
 
 def simulate_cubes(new_cube, new_cube_path, region, number_simulations):
     """
@@ -38,7 +36,7 @@ def simulate_cubes(new_cube, new_cube_path, region, number_simulations):
         Number of simulated cubes to generate.
     """
 
-    header = new_cube[0].header
+    header_total = new_cube[0].header
     data_cube = new_cube[1].data
     sigma_cube = new_cube[2].data
 
@@ -59,7 +57,7 @@ def simulate_cubes(new_cube, new_cube_path, region, number_simulations):
         simulated_cube = np.random.normal(loc=data_cube, scale=sigma_cube)
 
         # Build the new cube
-        primary_hdu = fits.PrimaryHDU(header=header)
+        primary_hdu = fits.PrimaryHDU(header=header_total)
         data_hdu = fits.ImageHDU(data=simulated_cube, name="DATA")
         hdul = fits.HDUList([primary_hdu, data_hdu])
 
