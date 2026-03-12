@@ -1,5 +1,8 @@
 # weavetab
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+![Last Commit](https://img.shields.io/github/last-commit/mchillaron/weavetab)
+![Repo size](https://img.shields.io/github/repo-size/mchillaron/weavetab)
 
 **weavetab** is a Python command-line tool designed to extract flux-calibrated spectra and their spatial coordinates from **WEAVE FITS data cubes**. The tool can convert original cubes into tabular spectral 
 data or new flux-calibrated cubes, and can generate simulated cubes too.
@@ -28,9 +31,9 @@ To install the package in your environment, first clone the repository from GitH
 git clone https://github.com/mchillaron/weavetab.git
 ```
 
-Then, navigate into the megaradrpsimul/ folder:
+Then, navigate into the weavetab/ folder:
 ```bash
-cd megaradrpsimul/
+cd weavetab/
 ```
 And install the package in editable mode:
 ```bash
