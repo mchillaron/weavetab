@@ -15,7 +15,7 @@ GREEN   = "\033[92m"
 CYAN    = "\033[96m"
 RESET   = "\033[0m"
 
-def table_to_cube(table, table_header, cube_filename, working_dir, region):
+def table_to_cube(table, table_header, cube_filename, output_dir, region):
     """
     Rebuild a FITS cube from an Astropy Table produced by extract_spectra_to_tab().
     Creates:
@@ -63,15 +63,7 @@ def table_to_cube(table, table_header, cube_filename, working_dir, region):
     sigma_hdu = fits.ImageHDU(data=sigma_cube, name="SIGMA")
 
     hdul_cube = fits.HDUList([primary_hdu, cube_hdu, sigma_hdu])
-
-    output_dir = Path(working_dir) / f"{cube_filename}_spectra_cubes"
-    if not output_dir.exists():
-        output_dir.mkdir(parents=True, exist_ok=True)
-        print(f'{GREEN}INFO:{RESET} Created output directory: {output_dir}')
-    else:
-        print(f'{GREEN}INFO:{RESET} Output directory already exists: {output_dir}')
-        print(f'{GREEN}INFO:{RESET} Existing files will be overwritten.')
-
+    
     if region is None:
         base_name = "cube_spectra"
     else:

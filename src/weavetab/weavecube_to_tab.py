@@ -16,7 +16,7 @@ import numpy as np
 GREEN   = "\033[92m"
 RESET   = "\033[0m"
 
-def weavecube_to_tab(cube_dict, working_dir, number_simulations, region=None,
+def weavecube_to_tab(cube_dict, output_dir, number_simulations, region=None,
                     save_tab=False):
     
     """Extract (x,y) coordinates, calibrated spectra and their inverse variance from a WEAVE cube.
@@ -125,31 +125,19 @@ def weavecube_to_tab(cube_dict, working_dir, number_simulations, region=None,
 
     # Create output directory if it doesn't exist
     if save_tab:
-        #output_dir = Path(working_dir) / f"{cube_filename}_spectra_tabs"
-        output_dir = working_dir
-        if not output_dir.exists():
-            output_dir.mkdir(parents=True, exist_ok=True)
-            print(f'{GREEN}INFO:{RESET} Created output directory: {output_dir}')
-        else:
-            print(f'{GREEN}INFO:{RESET} Output directory already exists: {output_dir}')
-            print(f'{GREEN}INFO:{RESET} Existing files will be overwritten.')
-    
-        # The output filename depends on the case:
-        # 1) if region is None, output filename is "extracted_spectra.fits"
-        # 2) if region is specified, output filename is "extracted_spectra_x1x2_y1y2.fits"
-        # 3) all the above + if number_simulations > 0, append "_000{number_simulations}" 
-        # to the filename before the extension, be the number zero-padded to 3 digits.
-
         if region is None:
-            base_name = "extracted_spectra"
+            base_name = "tab_spectra"
         else:
-            base_name = (f"extracted_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
+            base_name = (f"tab_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
         
         output_path = output_dir / f"{base_name}.fits"
-
         hdul_table.writeto(output_path, overwrite=True)
         print(f'{GREEN}INFO:{RESET} Extracted spectra saved to {output_path}')
 
     return table_to_save, header_total
 
-    
+# The output filename depends on the case:
+# 1) if region is None, output filename is "extracted_spectra.fits"
+# 2) if region is specified, output filename is "extracted_spectra_x1x2_y1y2.fits"
+# 3) all the above + if number_simulations > 0, append "_000{number_simulations}" 
+# to the filename before the extension, be the number zero-padded to 3 digits.
