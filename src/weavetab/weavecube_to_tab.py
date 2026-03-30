@@ -16,6 +16,12 @@ import numpy as np
 GREEN   = "\033[92m"
 RESET   = "\033[0m"
 
+def ivar_to_sigma(ivar, fill_value=np.nan):
+    sigma = np.full_like(ivar, fill_value, dtype=float)
+    mask = ivar > 0
+    sigma[mask] = 1.0 / np.sqrt(ivar[mask])
+    return sigma
+
 def weavecube_to_tab(cube_dict, output_dir, number_simulations, region=None,
                     save_tab=False):
     
@@ -87,10 +93,11 @@ def weavecube_to_tab(cube_dict, output_dir, number_simulations, region=None,
                 continue
 
             # sigma(ADU)= 1/sqrt(spectrum_ivar), avoiding division by zero
-            with np.errstate(divide='ignore', invalid='ignore'):
-                sigma_adus = np.where(spectrum_ivar > 0,
-                                    1.0 / np.sqrt(spectrum_ivar),
-                                    0)
+            #with np.errstate(divide='ignore', invalid='ignore'):
+                #sigma_adus = np.where(spectrum_ivar > 0,
+                #                    1.0 / np.sqrt(spectrum_ivar),
+                #                    0)
+            sigma_adus = ivar_to_sigma(spectrum_ivar)
 
             sigma_flux = sigma_adus * sensfunc           # Flux calibration of sigma
         
