@@ -13,11 +13,14 @@ from tqdm import tqdm
 import numpy as np
 import re
 
+from .factor_sigma_rms import compute_scaling_factors, build_scaling_function, rescale_sigma
+from .debug_plots import plot_spectrum_with_regions, plot_spectrum_with_regions_and_info, plot_rms_vs_sigma, plot_scaling_function, plot_simulations
+
 GREEN   = "\033[92m"
 CYAN    = "\033[96m"
 RESET   = "\033[0m"
 
-def simulate_cubes(new_cube, output_dir, region, number_simulations):
+def simulate_cubes(new_cube, wavelength, output_dir, region, number_simulations, cont_regions, xfits, yfits, debug_level):
     """
     Generate Monte-Carlo simulated cubes based on the cube created by table_to_cube().
 
@@ -83,6 +86,38 @@ def simulate_cubes(new_cube, output_dir, region, number_simulations):
         x1_fits, x2_fits, y1_fits, y2_fits = region
         region_tag = f"cube_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}_simul"
 
+    # Rescaling the sigma cube using factor_sigma_rms.py
+    if cont_regions is not None:
+        # elegir spaxel brillante (ejemplo)
+        x0 = xfits - 1
+        y0 = yfits - 1
+
+        flux_spec = data_cube[:, y0, x0]
+        sigma_spec = sigma_cube[:, y0, x0]
+
+        plot_spectrum_with_regions(wavelength, flux_spec, cont_regions, new_cube_path, debug_level)
+
+        # Calculting scaling factor between flux rms and sigma cube
+        lambda_centers, factors, rms_robust, rms_std, sigma_mean, sigma_median = compute_scaling_factors(
+            wavelength,
+            flux_spec,
+            sigma_spec,
+            cont_regions
+        )
+        # Scale function
+        scaling_func = build_scaling_function(lambda_centers, factors)
+
+        plot_spectrum_with_regions_and_info(wavelength,flux_spec,cont_regions,
+                lambda_centers,factors,new_cube_path,rms_list=rms_robust,sigma_list=sigma_mean, debug_level=debug_level)
+        plot_rms_vs_sigma(lambda_centers, rms_robust, rms_std, sigma_mean, sigma_median, new_cube_path, debug_level)
+        plot_scaling_function(wavelength, lambda_centers, factors, scaling_func, new_cube_path, debug_level)
+
+        # Extend to all wavelength over the whole cube
+        sigma_rescaled = rescale_sigma(wavelength, sigma_cube, scaling_func)
+        sigma_cube = sigma_rescaled
+    else:
+        print('No rescaling carried out. Simulations will be based on the original sigma cube.')
+
     for i in tqdm(range(start_number, start_number + number_simulations), desc="Simulating WEAVE cubes"): #bar_format=bar_format,
         print(i)
         # Draw random cube: Normal(mean=data, sigma=sigma)
@@ -91,12 +126,21 @@ def simulate_cubes(new_cube, output_dir, region, number_simulations):
         # Build the new cube
         primary_hdu = fits.PrimaryHDU(header=header_total)
         data_hdu = fits.ImageHDU(data=simulated_cube, name="DATA")
-        hdul = fits.HDUList([primary_hdu, data_hdu])
+        sigma_hdu = fits.ImageHDU(data=sigma_cube, name="SIGMA")
+        hdul = fits.HDUList([primary_hdu, data_hdu, sigma_hdu])
 
         sim_name = f"{region_tag}_{i:04d}.fits"
         output_path = new_cube_path / sim_name
         hdul.writeto(output_path, overwrite=True)
 
         print(f"Simulation {i-start_number+1}/{number_simulations} saved to {output_path}")
+
+        if debug_level == 1:
+            sims = []
+            for i in range(20):
+                sim = np.random.normal(flux_spec, sigma_cube[:, y0, x0])
+                sims.append(sim)
+
+            plot_simulations(wavelength, flux_spec, np.array(sims), new_cube_path)
 
     print(f"{GREEN}INFO:{RESET} All simulations completed.")
