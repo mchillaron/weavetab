@@ -10,15 +10,17 @@
 from pathlib import Path
 
 import argparse
+import numpy as np
 import os
 import re
-import numpy as np
+import time
 
 from weavetab.load_arm_datadict import load_arm_datadict
 from weavetab.get_wavelength_axis import get_wavelength_axis
 from weavetab.weavecube_to_tab import weavecube_to_tab
 from weavetab.table_to_cube import table_to_cube
 from weavetab.simulate_cubes import simulate_cubes
+from weavetab.read_continuum_reg_file import read_continuum_file
 
 RED     = "\033[91m"
 GREEN   = "\033[92m"
@@ -29,7 +31,7 @@ CYAN    = "\033[96m"
 BOLD = "\033[1m"
 RESET   = "\033[0m"
 
-def extract_cube_spectra(working_dir, cube_path, number_simulations, region=None, save_tab=False):
+def extract_cube_spectra(working_dir, cube_path, number_simulations, debug_level, start, region=None, save_tab=False, cont_regions=None, xfits=None, yfits=None):
     """Extract flux-calibrated spectra and their spatial coordinates from WEAVE FITS data cubes.
     Parameters
     ----------
@@ -39,10 +41,17 @@ def extract_cube_spectra(working_dir, cube_path, number_simulations, region=None
         Path to the WEAVE FITS data cube file.
     number_simulations : int
         Number of simulations to perform.
+    debug_level : int
+        Debug level. 0: no debug, 1: print more detailed intermediate results. Default 0.
     region : tuple of int, optional
         Region of interest in the cube specified as (x1, x2, y1, y2). 
         If None, the full cube is processed.
-    save_tab : 
+    save_tab : bool, optional
+        Whether to save a FITS table containing spatial coordinates and spectrum per pixel. Default is False.
+    cont_regions : array-like, optional
+        Continuum regions to compute the scaling factor between flux rms and sigma cube. The array should have shape (N, 2) where each row is (lmin, lmax) in Angstroms. If not provided, no scaling will be applied to the sigma cube.
+    xfits, yfits : int, optional
+        Coordinates of the spaxel to use for scaling factor computation. Required if cont_regions is provided.  
     -----------
     """
 
@@ -91,19 +100,27 @@ def extract_cube_spectra(working_dir, cube_path, number_simulations, region=None
     
     if number_simulations > 0:
         print(f'{BOLD}{MAGENTA} Simulating WEAVE cubes.{RESET}')
-        simulate_cubes(new_cube, output_dir, region, number_simulations)
+        simulate_cubes(new_cube, wavelength, output_dir, region, number_simulations, cont_regions, xfits, yfits, debug_level)
 
     print(f"Goodbye!")
+    end = time.perf_counter()
+    elapsed = end - start
+    hours = int(elapsed // 3600)
+    minutes = int((elapsed % 3600) // 60)
+    seconds = elapsed % 60
+    print(f"⏱️ Execution time: {elapsed:.3f} s ({hours:02d}:{minutes:02d}:{seconds:06.3f})")
     
     
-
 
 def main():
+    start = time.perf_counter()
     parser = argparse.ArgumentParser(description="Extract flux-calibrated spectra and their spatial coordinates from WEAVE FITS data cubes.")
     parser.add_argument('-F', '--cube-file', type=str, help="Name of the WEAVE FITS data cube file.")
     parser.add_argument('-reg', '--region', type=int, nargs=4, metavar=("x1", "x2", "y1", "y2"), help="Region of interest in the cube: x1 x2 y1 y2. FITS indices.")
     parser.add_argument('-n', '--number-simulations', type=int, default=0, help="Number of simulations to perform.")
     parser.add_argument('-s', '--save-table', type=bool, default=False, help="Save a FITS table containing spatial coordinates and spectrum per pixel. Default False.")
+    parser.add_argument('-cont', '--cont-regions', type=str, default=None, help="Path to a .txt file containing the continuum regions to compute the scaling factor between flux rms and sigma cube. The .txt file should have two columns: lmin lmax, where lmin and lmax are the limits of the continuum regions in Angstroms. If not provided, no scaling will be applied to the sigma cube.")
+    parser.add_argument('--debug', type=int, default=0, help="Debug level. 0: no debug, 1: print more detailed intermediate results. Default 0.")
     args = parser.parse_args()
 
     print(f"{BOLD} Welcome to weavetab {RESET}")
@@ -111,6 +128,8 @@ def main():
     cube_file = args.cube_file
     number_simulations = args.number_simulations
     save_tab = args.save_table
+    cont_regions_file = args.cont_regions
+    debug_level = args.debug
 
     if args.region is None:
         # process full cube
@@ -149,7 +168,25 @@ def main():
     else:
         print(f"{GREEN}INFO:{RESET} No FITS table will be saved. Only a FITS cube.")
 
-    extract_cube_spectra(working_dir, cube_path, number_simulations, region, save_tab)
+    if cont_regions_file is not None:
+        cont_regions_path = working_dir / cont_regions_file
+        if not cont_regions_path.is_file():
+            raise FileNotFoundError(f"Continuum regions file '{cont_regions_path}' does not exist.")
+        
+        print(f"{GREEN}INFO:{RESET} Continuum regions file provided: {cont_regions_path}")
+        cont_regions, xfits, yfits = read_continuum_file(cont_regions_path)
+        print(f'{GREEN}INFO:{RESET} Loaded continuum regions from {cont_regions_file}: {cont_regions}')
+        if xfits is None or yfits is None:
+           raise ValueError("No (x, y) coordinates provided in file")
+        print(f'{GREEN}INFO:{RESET} Using spaxel (x={xfits}, y={yfits}) for scaling factor computation.')
+    else:
+        print(f"{GREEN}INFO:{RESET} No continuum regions file provided. No scaling will be applied to the sigma cube.")
+        cont_regions = None
+
+    if debug_level < 0 or debug_level > 1:
+        raise ValueError(f"Invalid debug number of '{debug_level}': must be 0 or 1")
+
+    extract_cube_spectra(working_dir, cube_path, number_simulations, debug_level, start, region, save_tab, cont_regions, xfits, yfits)
 
 
 if __name__ == "__main__":
