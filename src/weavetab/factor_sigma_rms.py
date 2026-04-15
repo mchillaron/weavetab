@@ -59,7 +59,8 @@ def compute_scaling_factors(wave, flux, sigma, cont_regions):
         print(f"sigma_median: {sigma_median}")
 
         if sigma_median > 0:
-            factor = rms_robust / sigma_median
+            #factor = rms_robust / sigma_median
+            factor = rms_std / sigma_median
             print(f"  Scaling factor: {factor}")
 
             factors.append(factor)

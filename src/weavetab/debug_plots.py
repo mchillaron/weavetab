@@ -17,7 +17,8 @@ def plot_rms_vs_sigma(lambda_c, rms_robust, rms_std, sigma_mean, sigma_median, o
     plt.scatter(lambda_c, rms_std, marker="s", label="RMS (std)")
     plt.scatter(lambda_c, sigma_mean, marker="*", label="Sigma mean")
     plt.scatter(lambda_c, sigma_median, marker="o",label="Sigma median")
-    for x, y1, y2 in zip(lambda_c, rms_robust, sigma_median):
+    #for x, y1, y2 in zip(lambda_c, rms_robust, sigma_median):
+    for x, y1, y2 in zip(lambda_c, rms_std, sigma_median):
         plt.plot([x, x], [y1, y2], color="gray", linewidth=1, alpha=0.6)
 
     plt.xlabel("Wavelength")
@@ -75,15 +76,16 @@ def plot_simulations(wave, flux, simulated_fluxes, output_dir, n_show=20):
     plt.figure(figsize=(10,5))
 
     # original
-    plt.plot(wave, flux, color='black', lw=2, label="Original")
+    #plt.plot(wave, flux, color='black', lw=2, label="Original")
 
     # subset simulaciones
     for i in range(min(n_show, simulated_fluxes.shape[0])):
         plt.plot(wave, simulated_fluxes[i], alpha=0.2)
 
+    plt.plot(wave, flux, color='black', lw=0.5, label="Original")
     plt.xlabel("Wavelength")
     plt.ylabel("Flux")
-    plt.title("Simulated spectra spread")
+    plt.title("Simulated spectra")
     plt.legend()
     plt.tick_params(direction='in', which='both', top=True, right=True)
     plt.minorticks_on()
