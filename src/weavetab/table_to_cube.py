@@ -69,7 +69,7 @@ def table_to_cube(table, table_header, cube_filename, output_dir, region):
     else:
         base_name = (f"cube_spectra_{x1_fits}-{x2_fits}_{y1_fits}-{y2_fits}")
 
-    print(f"{CYAN}Dimensions of the new cube:{RESET} (nw={nw}, ny={ny}, nx={nx})")
+    print(f"{GREEN}INFO{RESET}: Dimensions of the new cube are (nw={nw}, ny={ny}, nx={nx})")
 
     output_path = output_dir / f"{base_name}.fits"
     hdul_cube.writeto(output_path, overwrite=True)

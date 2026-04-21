@@ -92,11 +92,6 @@ def weavecube_to_tab(cube_dict, output_dir, number_simulations, region=None,
                 num_zero_spectra += 1
                 continue
 
-            # sigma(ADU)= 1/sqrt(spectrum_ivar), avoiding division by zero
-            #with np.errstate(divide='ignore', invalid='ignore'):
-                #sigma_adus = np.where(spectrum_ivar > 0,
-                #                    1.0 / np.sqrt(spectrum_ivar),
-                #                    0)
             sigma_adus = ivar_to_sigma(spectrum_ivar)
 
             sigma_flux = sigma_adus * sensfunc           # Flux calibration of sigma
@@ -107,7 +102,7 @@ def weavecube_to_tab(cube_dict, output_dir, number_simulations, region=None,
     print(f"{GREEN}INFO:{RESET} Kept {len(rows)} spectra out of {total_pixels}")
 
     table = Table(rows=rows, names=("x", "y", "specADU", "spec", "ivarADU", "sigmaADU", "sigma"))
-    #table.meta["Header"] = header_total
+
     table["x"].unit = u.pixel
     table["y"].unit = u.pixel
     table["specADU"].unit = u.adu
@@ -123,7 +118,6 @@ def weavecube_to_tab(cube_dict, output_dir, number_simulations, region=None,
 
     primary_hdu = fits.PrimaryHDU()
     primary_hdu.header = header_total.copy()
-    #primary_hdu = fits.PrimaryHDU(data=None, header=header_total.copy())
     table_hdu = fits.BinTableHDU(table_to_save)
     hdul_table = fits.HDUList([
         primary_hdu,
