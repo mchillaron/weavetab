@@ -1,0 +1,12 @@
+# weavetab
+# Continuum regions to calculate rms and sigma factors with WEAVETAB
+# WEAVE RED arm Wavelength range in Low Resolution is 5790-9590 A
+# The following wavelengths regions are restframe
+# lmin lmax
+6050	6210
+6375	6530
+6595	6650
+6740	6820
+7160	7270
+#7760	8000
+#8050	8400
