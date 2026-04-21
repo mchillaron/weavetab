@@ -8,73 +8,192 @@
 #
 
 import numpy as np
+import teareduce as tea
+
 from scipy.interpolate import interp1d
 
-# robust rms based on MAD
-def robust_rms(flux):
+def process_all_cube(data_cube, sigma_cube, wavelength, cont_regions, debug_level):
+    """
+    Compute scaling statistics across all spaxels in the cube.
+    Returns mean, median, standard and robust deviation of all quantities per region.
+
+    Returns
+    -------
+    lambda_centers : ndarray
+    mean_factors : ndarray
+    std_factors : ndarray
+    mean_rms : ndarray
+    std_rms : ndarray
+    mean_sigma : ndarray
+    std_sigma : ndarray
+    """
+
+    nw, ny, nx = data_cube.shape
+
+    coords = []
+    all_lambda_centers = []
+    all_factors = []
+    all_rms_robust = []
+    all_rms_std = []
+    all_sigma_median = []
+    all_sigma_mean = []
+
+    for y in range(ny):
+        for x in range(nx):
+
+            flux_spec = data_cube[:, y, x]
+            sigma_spec = sigma_cube[:, y, x]
+
+            if np.all(np.isnan(flux_spec)):
+                continue
+
+            lambda_c, factors, rms_rob, rms_std, sig_mean, sig_med = compute_scaling_factors(
+                wavelength,
+                flux_spec,
+                sigma_spec,
+                cont_regions,
+                debug=debug_level
+            )
+
+            if len(factors) == 0:
+                continue
+            
+            coords.append((y, x)) # python indexes
+            all_lambda_centers.append(lambda_c)
+            all_factors.append(factors)
+            all_rms_robust.append(rms_rob)
+            all_rms_std.append(rms_std)
+            all_sigma_median.append(sig_med)
+            all_sigma_mean.append(sig_mean)
+
+    coords = np.array(coords)
+    all_lambda_centers = np.array(all_lambda_centers)
+    all_factors = np.array(all_factors)  # shape: (Npix, Nregions)
+    all_rms_robust = np.array(all_rms_robust)
+    all_rms_std=np.array(all_rms_std)
+    all_sigma_median = np.array(all_sigma_median)
+    all_sigma_mean = np.array(all_sigma_mean)
+
+    return coords, all_lambda_centers, all_factors, all_rms_robust, all_rms_std, all_sigma_median, all_sigma_mean
+
+
+
+def robust_rms(flux, debug=False):
+    """
+    Compute different RMS estimators for a flux array.
+
+    Parameters
+    ----------
+    flux : ndarray
+        Flux values within a continuum region.
+    debug : bool
+        If True, print diagnostic values.
+
+    Returns
+    -------
+    rms_robust : float
+        Robust RMS estimate (e.g., using robust_std).
+    rms_std : float
+        Standard deviation.
+    """
+
     median = np.nanmedian(flux)
-    mad = np.nanmedian(np.abs(flux - median))
     rms_std = np.nanstd(flux)
-    rms_robust = 1.4826 * mad
-    print(f"robust_rms: rms_std={rms_std}, rms_robust={rms_robust}")
+    rms_robust = tea.robust_std(flux)
+
+    if debug:
+        mad = np.nanmedian(np.abs(flux - median))
+        rms_mad = 1.4826 * mad
+        print(f"rms_std={rms_std}, rms_robust={rms_robust}, rms_mad={rms_mad}")
+
     return rms_robust, rms_std
 
-def compute_scaling_factors(wave, flux, sigma, cont_regions):
-    print("\n[compute_scaling_factors] Starting...")
+
+
+def compute_scaling_factors(wave, flux, sigma, cont_regions, debug):
+    """
+    Compute scaling factors between flux RMS and sigma values in predefined continuum regions.
+
+    For each wavelength region, this function estimates:
+    - Robust RMS of the flux
+    - Standard RMS
+    - Mean and median of the sigma spectrum
+    - Scaling factor = robust RMS / sigma_median
+
+    Parameters
+    ----------
+    wave : array
+        Wavelength array.
+    flux : array
+        Flux spectrum.
+    sigma : array
+        Sigma (noise) spectrum.
+    cont_regions : list of tuples
+        Continuum regions defined as (lmin, lmax).
+    debug : bool
+        Enable verbose output.
+
+    Returns
+    -------
+    lambda_centers : ndarray
+        Central wavelength of each region.
+    factors : ndarray
+        Scaling factors per region.
+    rms_robust_list : ndarray
+        Robust RMS values.
+    rms_std_list : ndarray
+        Standard RMS values.
+    sigma_mean_list : ndarray
+        Mean sigma values.
+    sigma_median_list : ndarray
+        Median sigma values.
+    """
 
     factors = []
     lambda_centers = []
+
     rms_robust_list = []
     rms_std_list = []
     sigma_mean_list = []
     sigma_median_list = []
 
-    print(f"Input shapes -> wave: {wave.shape}, flux: {flux.shape}, sigma: {sigma.shape}")
-
     for i, (lmin, lmax) in enumerate(cont_regions):
-        print(f"\nRegion {i+1}: {lmin} - {lmax}")
 
         mask = (wave >= lmin) & (wave <= lmax)
         n_pixels = np.sum(mask)
-
-        print(f"Pixels in region: {n_pixels}")
+        #print(f"Pixels in region: {n_pixels}")
 
         if n_pixels < 5:
             print("WARNING: Too few pixels, skipping region")
+            lambda_centers.append(0.5 * (lmin + lmax))
+            rms_robust = np.nan
+            rms_std = np.nan
+            factor = np.nan
+            sigma_mean = np.nan
+            sigma_median=np.nan
             continue
 
         flux_region = flux[mask]
         sigma_region = sigma[mask]
 
-        print(f"flux_region shape: {flux_region.shape}")
-        print(f"sigma_region shape: {sigma_region.shape}")
-
-        rms_robust, rms_std = robust_rms(flux_region)
+        rms_robust, rms_std = robust_rms(flux_region, debug=debug)
         sigma_mean = np.nanmean(sigma_region)
         sigma_median = np.nanmedian(sigma_region)
 
-        print(f"RMS (robust): {rms_robust}")
-        print(f"RMS (standard): {rms_std}")
-        print(f"sigma_mean: {sigma_mean}")
-        print(f"sigma_median: {sigma_median}")
+        if sigma_median == 0:
+            sigma_median = np.nan
+            factor = np.nan
+            continue
 
-        if sigma_median > 0:
-            #factor = rms_robust / sigma_median
-            factor = rms_std / sigma_median
-            print(f"  Scaling factor: {factor}")
+        factor = rms_robust / sigma_median
 
-            factors.append(factor)
-            lambda_centers.append(0.5 * (lmin + lmax))
+        lambda_centers.append(0.5 * (lmin + lmax))
+        factors.append(factor)
 
-            # save for debug plots
-            rms_robust_list.append(rms_robust)
-            rms_std_list.append(rms_std)
-            sigma_mean_list.append(sigma_mean)
-            sigma_median_list.append(sigma_median)
-        else:
-            print("WARNING: sigma_mean <= 0, skipping")
-
-    print("\n[compute_scaling_factors] Done.\n")
+        rms_robust_list.append(rms_robust)
+        rms_std_list.append(rms_std)
+        sigma_mean_list.append(sigma_mean)
+        sigma_median_list.append(sigma_median)
 
     return (
         np.array(lambda_centers),
@@ -86,28 +205,88 @@ def compute_scaling_factors(wave, flux, sigma, cont_regions):
     )
 
 
-def build_scaling_function(lambda_centers, factors, kind='linear'):
-    return interp1d(
-        lambda_centers,
-        factors,
-        bounds_error=False,
-        fill_value="extrapolate",
-        kind=kind
-    )
+
+def rescale_sigma_global(sigma_cube, all_factors, debug):
+    """
+    Rescale the entire sigma cube using a single global factor.
+
+    The factor is computed as:
+        median( mean(factors per region) )
+
+    Only applied if factor > 1.
+
+    Parameters
+    ----------
+    sigma_cube : ndarray (nw, ny, nx)
+    all_factors : ndarray (npix, nregions)
+    verbose : bool
+
+    Returns
+    -------
+    sigma_rescaled : ndarray
+    global_factor : float
+    """
+
+    # mean factor per region
+    mean_factors = np.nanmean(all_factors, axis=0)
+
+    # global median
+    global_factor = np.nanmedian(mean_factors)
+
+    if debug > 0:
+        print(f"INFO: Global scaling factor = {global_factor:.3f}")
+
+    if global_factor > 1:
+        sigma_rescaled = sigma_cube * global_factor
+        if debug > 0:
+            print("INFO: Sigma cube rescaled globally.")
+    else:
+        sigma_rescaled = sigma_cube
+        if debug > 0:
+            print("INFO: Global factor <= 1 → no rescaling applied.")
+
+    return sigma_rescaled, global_factor
 
 
-def rescale_sigma(wave, sigma, scaling_func):
-    print("\n[rescale_sigma] Starting sigma rescaling...")
 
-    factor_lambda = scaling_func(wave)
-    print(f"[rescale_sigma] factor_lambda shape: {factor_lambda.shape}")
+def rescale_sigma_per_spectrum(sigma_cube, all_factors, coords):
+    """
+    Rescale sigma cube per spaxel using individual scaling factors.
 
-    # Expand dimensions for cube broadcasting
-    factor_lambda = factor_lambda[:, None, None]
-    print(f"[rescale_sigma] reshaped factor_lambda: {factor_lambda.shape}")
-    print(f"[rescale_sigma] sigma shape: {sigma.shape}")
+    For each spectrum:
+        factor_i = median( mean(factors across regions) )
 
-    sigma_rescaled = sigma * factor_lambda
+    Only spectra with factor_i > 1 are rescaled.
 
-    print("[rescale_sigma] Rescaling done.\n")
-    return sigma_rescaled
+    Parameters
+    ----------
+    sigma_cube : ndarray (nw, ny, nx)
+    all_factors : ndarray (npix, nregions)
+    verbose : bool
+
+    Returns
+    -------
+    sigma_rescaled : ndarray
+    factors_map : ndarray (ny, nx)
+    """
+
+    nw, ny, nx = sigma_cube.shape
+    npix = ny * nx
+
+    # median per region, for each spaxel
+    median_factors_per_spaxel = np.nanmedian(all_factors, axis=1)
+
+    factors_map = np.full((ny, nx), np.nan)                         # complete map, initially NaN
+    for (y, x), f in zip(coords, median_factors_per_spaxel):        # filling only valid pixels
+        factors_map[y, x] = f
+
+    sigma_rescaled = sigma_cube.copy()
+    mask = factors_map > 1
+
+    n_rescaled = np.sum(mask)
+    n_total = np.sum(~np.isnan(factors_map))
+
+    print(f"INFO: Spaxels rescaled: {n_rescaled}/{n_total} ({100*n_rescaled/n_total:.2f}%)")
+    sigma_rescaled[:, mask] *= factors_map[mask]
+
+    return sigma_rescaled, factors_map
