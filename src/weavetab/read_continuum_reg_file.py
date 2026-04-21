@@ -9,29 +9,21 @@
 
 import numpy as np
 
-def read_continuum_file(filename):
+def read_continuum_file(filename, redshift):
     regions = []
-    x = y = None
 
     with open(filename, 'r') as f:
         for line in f:
             line = line.strip()
 
-            # Skip comments and empty lines
             if not line or line.startswith('#'):
                 continue
 
-            # Detect coordinates
-            if line.startswith('(') and line.endswith(')'):
-                coords = line.strip('()').split(',')
-                x = int(coords[0])
-                y = int(coords[1])
-                print(f"[INFO] Using spaxel (x={x}, y={y})")
-            
-            else:
-                parts = line.split()
-                if len(parts) == 2:
-                    lmin, lmax = map(float, parts)
-                    regions.append((lmin, lmax))
+            parts = line.split()
+            if len(parts) == 2:
+                lmin, lmax = map(float, parts)
+                regions.append((lmin, lmax))
 
-    return np.array(regions), x, y
+    regions_restframe = np.array(regions)
+    regions_obs = (1+redshift) * regions_restframe
+    return regions_obs
